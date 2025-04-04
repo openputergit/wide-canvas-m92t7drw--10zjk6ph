@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catering Staff Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<style>
+    body {
+        font-family: 'Poppins', sans-serif;
+    }
+    .loader {
+        border: 3px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 3px solid #3498db;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8">Catering Staff Management</h1>
+        
+        <!-- Staff Management Section -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Add Staff Member</h2>
+            <form id="staffForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" id="staffName" placeholder="Staff Name" class="w-full p-2 border rounded" required>
+                    <select id="staffRole" class="w-full p-2 border rounded" required>
+                        <option value="">Select Role</option>
+                        <option value="waiter">Waiter</option>
+                        <option value="chef">Chef</option>
+                        <option value="helper">Helper</option>
+                    </select>
+                    <input type="tel" id="staffPhone" placeholder="Phone Number" class="w-full p-2 border rounded" required>
+                    <input type="number" id="staffWage" placeholder="Daily Wage (₹)" class="w-full p-2 border rounded" required>
+                </div>
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full md:w-auto">
+                    Add Staff Member
+                </button>
+            </form>
+        </div>
+
+        <!-- Attendance Section -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Mark Attendance</h2>
+            <div class="flex gap-4 mb-4">
+                <input type="date" id="attendanceDate" class="p-2 border rounded" required>
+                <button onclick="loadStaffForAttendance()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    Load Staff
+                </button>
+            </div>
+            <div id="attendanceList" class="space-y-4">
+                <!-- Attendance list will be populated here -->
+            </div>
+        </div>
+
+        <!-- Staff List Section -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4">Staff List</h2>
+            <div id="staffList" class="space-y-4">
+                <!-- Staff list will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const appSlug = 'catering-manager-123456';
+
+        async function addStaff(event) {
+            event.preventDefault();
+            const staffData = {
+                name: document.getElementById('staffName').value,
+                role: document.getElementById('staffRole').value,
+                phone: document.getElementById('staffPhone').value,
+                wage: parseFloat(document.getElementById('staffWage').value)
+            };
+
+            try {
+                const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer x7a7sfG8waSdgYXqcGMf8zmaEn23',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appSlug,
+                        action: 'create',
+                        collection: 'staff',
+                        data: staffData
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('Staff member added successfully!');
+                    document.getElementById('staffForm').reset();
+                    loadStaffList();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to add staff member');
+            }
+        }
+
+        async function loadStaffList() {
+            const staffList = document.getElementById('staffList');
+            staffList.innerHTML = '<div class="flex justify-center"><div class="loader"></div></div>';
+
+            try {
+                const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer x7a7sfG8waSdgYXqcGMf8zmaEn23',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appSlug,
+                        action: 'read',
+                        collection: 'staff'
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    staffList.innerHTML = data.result.read.map(staff => `
+                        <div class="border p-4 rounded-lg flex justify-between items-center">
+                            <div>
+                                <h3 class="font-semibold">${staff.name}</h3>
+                                <p class="text-sm text-gray-600">${staff.role} | ₹${staff.wage}/day</p>
+                                <p class="text-sm text-gray-600">${staff.phone}</p>
+                            </div>
+                            <button onclick="deleteStaff('${staff._id}')" class="text-red-500 hover:text-red-700">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                staffList.innerHTML = '<p class="text-red-500">Failed to load staff list</p>';
+            }
+        }
+
+        async function loadStaffForAttendance() {
+            const date = document.getElementById('attendanceDate').value;
+            if (!date) {
+                alert('Please select a date');
+                return;
+            }
+
+            const attendanceList = document.getElementById('attendanceList');
+            attendanceList.innerHTML = '<div class="flex justify-center"><div class="loader"></div></div>';
+
+            try {
+                const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer x7a7sfG8waSdgYXqcGMf8zmaEn23',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appSlug,
+                        action: 'read',
+                        collection: 'staff'
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    attendanceList.innerHTML = data.result.read.map(staff => `
+                        <div class="border p-4 rounded-lg flex justify-between items-center">
+                            <div>
+                                <h3 class="font-semibold">${staff.name}</h3>
+                                <p class="text-sm text-gray-600">${staff.role}</p>
+                            </div>
+                            <div class="flex gap-4">
+                                <button onclick="markAttendance('${staff._id}', '${date}', 'present')" 
+                                        class="px-4 py-2 rounded bg-green-100 text-green-800 hover:bg-green-200">
+                                    Present
+                                </button>
+                                <button onclick="markAttendance('${staff._id}', '${date}', 'absent')"
+                                        class="px-4 py-2 rounded bg-red-100 text-red-800 hover:bg-red-200">
+                                    Absent
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                attendanceList.innerHTML = '<p class="text-red-500">Failed to load staff list</p>';
+            }
+        }
+
+        async function markAttendance(staffId, date, status) {
+            try {
+                const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer x7a7sfG8waSdgYXqcGMf8zmaEn23',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appSlug,
+                        action: 'create',
+                        collection: 'attendance',
+                        data: {
+                            staffId,
+                            date,
+                            status
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Attendance marked as ${status}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to mark attendance');
+            }
+        }
+
+        async function deleteStaff(id) {
+            if (!confirm('Are you sure you want to delete this staff member?')) return;
+
+            try {
+                const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer x7a7sfG8waSdgYXqcGMf8zmaEn23',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appSlug,
+                        action: 'delete',
+                        collection: 'staff',
+                        id
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('Staff member deleted successfully');
+                    loadStaffList();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to delete staff member');
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('staffForm').addEventListener('submit', addStaff);
+        
+        // Initial load
+        loadStaffList();
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
